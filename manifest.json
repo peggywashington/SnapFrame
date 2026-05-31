@@ -1,13 +1,16 @@
 {
   "manifest_version": 3,
-  "name": "截图框",
-  "version": "1.2",
-  "description": "在任意网页放置可拖拽截图框，一键导出图片",
-  "permissions": ["activeTab", "scripting"],
+  "name": "SnapFrame",
+  "version": "2.0",
+  "description": "Overlay a draggable crop frame on any webpage and export pixel-perfect screenshots.",
+  "permissions": ["activeTab", "scripting", "tabs"],
   "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "截图框",
+    "default_title": "SnapFrame 截图框",
     "default_icon": {
       "16": "icon16.png",
       "48": "icon48.png"

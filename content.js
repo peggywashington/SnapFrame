@@ -6,8 +6,6 @@
     return;
   }
 
-  // html2canvas is pre-injected by popup.js before content.js runs
-
   var STORE = '__sfState';
   var def = { x: 40, y: 60, w: 756, h: 1344, ow: 1080, oh: 1920, vis: true, fn: 1 };
   var st;
@@ -15,7 +13,7 @@
   catch(e) { st = Object.assign({}, def); }
   function save() { try { sessionStorage.setItem(STORE, JSON.stringify(st)); } catch(e){} }
 
-  // ── Inject styles ────────────────────────────────────────
+  // ── Styles ───────────────────────────────────────────────
   var css = document.createElement('style');
   css.textContent = [
     '#__sfPanel{all:initial!important;position:fixed!important;bottom:20px!important;right:20px!important;z-index:2147483647!important;background:#1e1e35!important;border:1px solid #3a3a5a!important;border-radius:14px!important;padding:14px 16px!important;width:272px!important;font-family:PingFang SC,system-ui,sans-serif!important;font-size:13px!important;color:#eee!important;box-shadow:0 8px 32px rgba(0,0,0,.65)!important;user-select:none!important;box-sizing:border-box!important}',
@@ -35,13 +33,13 @@
     '#__sfPanel .__hint{font-size:10px!important;color:#555!important;margin-bottom:8px!important;display:block!important}',
     '#__sfSnap{display:block!important;width:100%!important;background:#f5c518!important;color:#111!important;padding:9px!important;border-radius:8px!important;font-size:14px!important;font-weight:700!important;cursor:pointer!important;text-align:center!important}',
     '#__sfSnap:hover{background:#ffd740!important}',
-    '#__sfStatus{font-size:11px!important;color:#f5c518!important;margin-top:6px!important;min-height:14px!important;text-align:center!important;display:block!important}',
-    '#__sfFrame{position:fixed!important;border:2px dashed #f5c518!important;background:rgba(245,197,24,.03)!important;z-index:2147483646!important;cursor:move!important}',
+    '#__sfStatus{font-size:11px!important;color:#f5c518!important;margin-top:6px!important;min-height:14px!important;text-align:center!important;display:block!important;line-height:1.5!important}',
+    '#__sfFrame{position:fixed!important;border:2px dashed #f5c518!important;background:rgba(245,197,24,.03)!important;z-index:2147483646!important;cursor:move!important;pointer-events:auto!important}',
     '#__sfLabel{position:absolute!important;top:-22px!important;left:0!important;font-size:11px!important;color:#f5c518!important;background:rgba(0,0,0,.78)!important;padding:2px 7px!important;border-radius:4px!important;pointer-events:none!important;white-space:nowrap!important;font-family:monospace!important}',
   ].join('');
   document.head.appendChild(css);
 
-  // ── Panel HTML ───────────────────────────────────────────
+  // ── Panel ────────────────────────────────────────────────
   var panel = document.createElement('div');
   panel.id = '__sfPanel';
   panel.innerHTML =
@@ -62,26 +60,23 @@
     '<span id="__sfStatus"></span>';
   document.body.appendChild(panel);
 
-  // Presets
   var presets = [['9:16',756,1344,1080,1920],['4:5',756,945,1080,1350],['1:1',756,756,1080,1080],['16:9',1344,756,1920,1080]];
   var psWrap = document.getElementById('__sfPresets');
   presets.forEach(function(pr) {
     var b = document.createElement('span');
     b.className = '__pb'; b.textContent = pr[0];
-    b.addEventListener('click', function() {
-      st.w=pr[1]; st.h=pr[2]; st.ow=pr[3]; st.oh=pr[4]; applyFrame();
-    });
+    b.addEventListener('click', function() { st.w=pr[1];st.h=pr[2];st.ow=pr[3];st.oh=pr[4]; applyFrame(); });
     psWrap.appendChild(b);
   });
 
-  // ── Crop frame ───────────────────────────────────────────
+  // ── Frame ────────────────────────────────────────────────
   var frame = document.createElement('div');
   frame.id = '__sfFrame';
   frame.innerHTML = '<div id="__sfLabel"></div>';
   document.body.appendChild(frame);
 
   function applyFrame() {
-    frame.style.cssText = 'position:fixed!important;border:2px dashed #f5c518!important;background:rgba(245,197,24,.03)!important;z-index:2147483646!important;cursor:move!important;' +
+    frame.style.cssText = 'position:fixed!important;border:2px dashed #f5c518!important;background:rgba(245,197,24,.03)!important;z-index:2147483646!important;cursor:move!important;pointer-events:auto!important;' +
       'left:'+st.x+'px;top:'+st.y+'px;width:'+st.w+'px;height:'+st.h+'px;display:'+(st.vis?'block':'none');
     document.getElementById('__sfLabel').textContent = st.w + ' × ' + st.h;
     document.getElementById('__sfW').value  = st.w;
@@ -93,7 +88,6 @@
   }
   applyFrame();
 
-  // Input listeners
   document.getElementById('__sfW') .addEventListener('input', function(){ st.w  = parseInt(this.value)||756;  applyFrame(); });
   document.getElementById('__sfH') .addEventListener('input', function(){ st.h  = parseInt(this.value)||1344; applyFrame(); });
   document.getElementById('__sfOW').addEventListener('input', function(){ st.ow = parseInt(this.value)||1080; save(); });
@@ -132,67 +126,93 @@
   });
   document.addEventListener('mouseup', function() { pdrag = null; });
 
-  // ── Screenshot ────────────────────────────────────────────
+  // ── Screenshot via captureVisibleTab ─────────────────────
+  // Sends a message to the background script which calls captureVisibleTab,
+  // then we crop the result here in the content script.
   document.getElementById('__sfSnap').addEventListener('click', function() {
-    var outW  = parseInt(document.getElementById('__sfOW').value)  || 1080;
-    var outH  = parseInt(document.getElementById('__sfOH').value)  || 1920;
-    var fmt   = document.getElementById('__sfFmt').value;
-    var nf    = Math.max(1, parseInt(document.getElementById('__sfFN').value) || 1);
-    var ext   = fmt==='image/png'?'png':fmt==='image/webp'?'webp':'jpg';
+    var outW   = parseInt(document.getElementById('__sfOW').value)  || 1080;
+    var outH   = parseInt(document.getElementById('__sfOH').value)  || 1920;
+    var fmt    = document.getElementById('__sfFmt').value;
+    var nf     = Math.max(1, parseInt(document.getElementById('__sfFN').value) || 1);
+    var ext    = fmt==='image/png'?'png':fmt==='image/webp'?'webp':'jpg';
     var status = document.getElementById('__sfStatus');
 
     frame.style.display = 'none';
     panel.style.display = 'none';
-    status.textContent  = '截图中…';
 
-    setTimeout(function() {
-      // html2canvas already available
-      (function() {
-        var chain = Promise.resolve();
-        for (var i = 0; i < nf; i++) {
-          (function(idx) {
-            chain = chain.then(function() {
-              return html2canvas(document.body, {
-                x: st.x,
-                y: st.y + idx * st.h + window.scrollY,
-                width:  st.w,
-                height: st.h,
-                scale:  outW / st.w,
-                useCORS: true,
-                allowTaint: true,
-                backgroundColor: '#f5f4f0',
-                logging: false,
-                scrollX: 0,
-                scrollY: 0,
-              }).then(function(c) {
-                var out = c;
-                if (c.width !== outW || c.height !== outH) {
-                  out = document.createElement('canvas');
-                  out.width = outW; out.height = outH;
-                  var ctx = out.getContext('2d');
-                  ctx.fillStyle = '#f5f4f0';
-                  ctx.fillRect(0, 0, outW, outH);
-                  ctx.drawImage(c, 0, 0, outW, outH);
-                }
-                var a = document.createElement('a');
-                a.href = out.toDataURL(fmt, 0.93);
-                a.download = 'snap_' + String(idx+1).padStart(2,'0') + '.' + ext;
-                a.click();
-                return new Promise(function(r){ setTimeout(r, 350); });
-              });
-            });
-          })(i);
-        }
-        chain.then(function() {
-          status.textContent = '✅ 完成 ' + nf + ' 张';
-        }).catch(function(e) {
-          status.textContent = '❌ ' + e.message;
-          console.error(e);
-        }).finally(function() {
-          frame.style.display = st.vis ? 'block' : 'none';
-          panel.style.display = '';
+    // Capture nf frames sequentially
+    // For each frame i: scroll so that frame top is at viewport top,
+    // capture, crop, then move on.
+    var originalScrollY = window.scrollY;
+    var frameIndex = 0;
+
+    function captureFrame() {
+      if (frameIndex >= nf) {
+        // Restore scroll and UI
+        window.scrollTo(0, originalScrollY);
+        frame.style.display = st.vis ? 'block' : 'none';
+        panel.style.display = '';
+        status.textContent = '✅ 完成 ' + nf + ' 张';
+        return;
+      }
+
+      // For multi-frame: scroll so that frame i starts at top of viewport
+      // Frame i covers page Y: (st.y + scrollY_at_snap) + i * st.h
+      // We want that position to appear at viewport Y = st.y
+      // So: scrollTo( originalScrollY + i * st.h )
+      var targetScroll = originalScrollY + frameIndex * st.h;
+      window.scrollTo(0, targetScroll);
+
+      // Wait for scroll + repaint
+      setTimeout(function() {
+        // Ask background to capture visible tab
+        chrome.runtime.sendMessage({ type: 'CAPTURE' }, function(response) {
+          if (!response || !response.dataUrl) {
+            status.textContent = '❌ 截图失败';
+            frame.style.display = st.vis ? 'block' : 'none';
+            panel.style.display = '';
+            return;
+          }
+
+          var img = new Image();
+          img.onload = function() {
+            // devicePixelRatio: the capture is at physical pixels
+            var dpr = window.devicePixelRatio || 1;
+
+            // Crop coords in physical pixels
+            var cropX = Math.round(st.x * dpr);
+            var cropY = Math.round(st.y * dpr);
+            var cropW = Math.round(st.w * dpr);
+            var cropH = Math.round(st.h * dpr);
+
+            // Clamp to image bounds
+            cropX = Math.max(0, Math.min(cropX, img.width  - 1));
+            cropY = Math.max(0, Math.min(cropY, img.height - 1));
+            cropW = Math.min(cropW, img.width  - cropX);
+            cropH = Math.min(cropH, img.height - cropY);
+
+            var canvas = document.createElement('canvas');
+            canvas.width  = outW;
+            canvas.height = outH;
+            var ctx = canvas.getContext('2d');
+            ctx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, outW, outH);
+
+            var q = fmt === 'image/jpeg' ? 0.93 : 1.0;
+            var a = document.createElement('a');
+            a.href     = canvas.toDataURL(fmt, q);
+            a.download = 'snap_' + String(frameIndex + 1).padStart(2, '0') + '.' + ext;
+            a.click();
+
+            frameIndex++;
+            setTimeout(captureFrame, 300);
+          };
+          img.src = response.dataUrl;
         });
-      })();
-    }, 150);
+      }, 150); // wait for scroll repaint
+    }
+
+    status.textContent = '截图中…';
+    captureFrame();
   });
+
 })();
